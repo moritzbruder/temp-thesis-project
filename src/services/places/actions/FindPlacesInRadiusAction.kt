@@ -1,0 +1,3 @@
+package de.moritzbruder.services.places.actions
+
+class FindPlacesInRadiusAction

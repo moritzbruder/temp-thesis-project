@@ -1,0 +1,3 @@
+package de.moritzbruder.services.activities
+
+interface ActivitiesServiceInterface

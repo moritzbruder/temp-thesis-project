@@ -1,0 +1,3 @@
+rootProject.name = "activities-divmon"
+include 'auth'
+

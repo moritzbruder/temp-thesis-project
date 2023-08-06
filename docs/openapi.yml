@@ -1,0 +1,476 @@
+openapi: 3.0.0
+info:
+  title: Activities API
+  version: 0.0.1
+
+tags:
+  - name: Auth
+  - name: Images
+  - name: Activities
+  - name: Places
+
+paths:
+  /login:
+    get:
+      tags: [Auth]
+      description: Returns a JWT to authenticate future requests
+      parameters:
+        - name: auth-pw
+          description: user's password
+          in: header
+          required: true
+          example: "password123"
+          schema:
+            type: string
+        - name: auth-email
+          description: user's email Address
+          in: header
+          required: true
+          example: "user@email.com"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: when login succeeded
+          content:
+            "application/json; charset=utf-8":
+              schema:
+                type: string
+                description: JWT Token
+                example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        "400":
+          description: when email or password are missing
+        "401":
+          description: when password is invalid
+  /user:
+    post:
+      tags: [Auth]
+      description: Creates a new user account
+      requestBody:
+        required: true
+        description: information about the user to be created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@email.com
+                password:
+                  type: string
+                  minLength: 8
+                  example: password123
+                firstName:
+                  type: string
+                  example: John
+                lastName:
+                  type: string
+                  example: Doe
+      responses:
+        "201":
+          description: when user created was successfully
+
+        "401":
+          description: when request body, email or password are invalid
+  /image/{imageId}:
+    get:
+      tags:
+        - Images
+      description: Returns an individual image
+      parameters:
+        - name: imageId
+          in: path
+          required: true
+          description: id of the image
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: when image returned successfully
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: when there is no image with the given id
+  /place:
+    post:
+      description: Create a new place
+      tags:
+        - Places
+      requestBody:
+        required: true
+        description: information about the place to be created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Sbarro Pizza
+                description:
+                  type: string
+                  example: Original XL NY Style Pizza and Classic Italian recipes like pasta, stromboli & salad from the Sbarro family who started it all. 600+ locations worldwide.
+                category:
+                  $ref: "#/components/schemas/PlaceCategory"
+                pictureBase64:
+                  type: string
+                  format: base64
+                  example: iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAMP2lDQ1BJQ0MgUHJvZmlsZQAASImVVwdYU8kWnluSkEBoAQSkhN4EkRpASggt9N5EJSQBQokxEFTs6KKCaxcL2NBVEQUrzYIidhbF3=
+      responses:
+        "201":
+          description: when place was created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+        "400":
+          description: when the request body is invalid
+    get:
+      tags:
+        - Places
+      description: List all places owned by the authenticated user
+      responses:
+        "200":
+          description: list of places
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Place"
+  /place/{placeId}:
+    get:
+      tags:
+        - Places
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: efb1ce45-5068-474a-9cb9-2fb65f2a3e0b
+      responses:
+        "200":
+          description: responds with place
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+        "404":
+          description: when place with given id does not exist
+  /place/{placeId}/request-link:
+    put:
+      tags:
+        - Places
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: efb1ce45-5068-474a-9cb9-2fb65f2a3e0b
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                osmId:
+                  type: integer
+                  example: 128737
+                osmType:
+                  type: string
+                  enum:
+                    - N
+                    - W
+                    - R
+                  example: W
+      responses:
+        "200":
+          description: when the link was created successfully
+        "400":
+          description: when the osm place does not exist or the body is invalid
+        "404":
+          description: when the place does not exist
+        "409":
+          description: when te osm place is already linked to another place
+  /activity:
+    post:
+      description: create a new activity
+      tags:
+        - Activities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                placeId:
+                  type: string
+                  format: uuid
+                  example: 5fc67067-2f61-4476-8216-cd06360f07eb
+                title:
+                  type: string
+                  description: friendly name of the activity
+                  example: See a movie
+                description:
+                  type: string
+                  description: friendly description of the activity
+                  example: Enjoy one of our hand-picked motion pictures at this special cinema!
+                  nullable: true
+                timeSuggestions:
+                  description: a list of suggested timeslots for users to perform this activity at
+                  type: array
+                  items:
+                    properties:
+                      days:
+                        description: days of the week to suggest this on
+                        type: array
+                        example:
+                          - 0
+                          - 1
+                          - 2
+                          - 3
+                          - 4
+                        items:
+                          description: day of the week
+                          type: integer
+                          enum:
+                            - 0
+                            - 1
+                            - 2
+                            - 3
+                            - 4
+                            - 5
+                            - 6
+                      minuteOfDay:
+                        description: time of day to suggest this activity at
+                        type: integer
+                        format: minute of day
+                        example: 1170
+                imageData:
+                  type: string
+                  format: base64
+                  description: png image base64 encoded to represent the activity
+                  nullable: true
+                  example: =9h83h9d3hu2789d33h3198092d901d1209/1312/1121123-313-13313==
+      responses:
+        "201":
+          description: when the activity was created
+        "400":
+          description: when the request body is invalid
+        "403":
+          description: when the user is not the owner of the place
+  /activity/nearby:
+    get:
+      tags:
+        - Activities
+      description: List activities close to the given GPS coordinates
+      parameters:
+        - name: lat
+          in: query
+          description: latitude
+          example: 52.1232
+          schema:
+            type: number
+        - name: lon
+          in: query
+          description: longitude
+          example: 12.1232
+          schema:
+            type: number
+      responses:
+        "200":
+          description: a list of activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+  /activity/{activityId}:
+    get:
+      tags:
+        - Activities
+      description: Get a specific activity by id
+      parameters:
+        - name: activityId
+          description: id of the activity
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: responds with activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+        "404":
+          description: when there is no activity with the given id
+    delete:
+      tags:
+        - Actvities
+      description: Delete an activity
+      parameters:
+        - name: activityId
+          description: id of the activity
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: when the activity was deleted
+        "404":
+          description: when there is no activity with the given id
+  /activity/{activityId}/enabled:
+    put:
+      tags:
+        - Actvities
+      description: Enable or disable an activity
+      parameters:
+        - name: activityId
+          description: id of the activity
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: boolean
+              description: whether the activity should be enabled or disabled
+      responses:
+        "200":
+          description: when the activity was enabled/disabled
+        "404":
+          description: when there is no activity with the given id
+
+
+
+components:
+  schemas:
+    Place:
+      description: a place representing a physical location
+      properties:
+        id:
+          type: string
+          description: id of the place
+          format: uuid
+          example: efb1ce45-5068-474a-9cb9-2fb65f2a3e0b
+        owner:
+          description: user id of the user who owns this place
+          type: string
+          format: uuid
+          example: efb1ce45-5068-474a-9cb9-2fb65f2a3e0b
+        name:
+          description: Friendly name of the place
+          type: string
+          example: Sbarro Pizza
+        pictureId:
+          description: Id of the picture of this place (use `GET /image/{imageId}` to retrieve)
+          type: string
+          format: uuid
+          example: efb1ce45-5068-474a-9cb9-2fb65f2a3e0b
+        pictureThumbnail:
+          description: small version of the picture of this place
+          type: string
+          format: base64
+          example: iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAMP2lDQ1BJQ0MgUHJvZmlsZQAASImVVwdYU8kWnluSkEBoAQSkhN4EkRpASggt9N5EJSQBQokxEFTs6KKCaxcL2NBVEQUrzYIidhbF3=
+        description:
+          description: Description of the place
+          type: string
+          example: Original XL NY Style Pizza and Classic Italian recipes like pasta, stromboli & salad from the Sbarro family who started it all. 600+ locations worldwide.
+        category:
+          $ref: "#/components/schemas/PlaceCategory"
+        osmLink:
+          type: object
+          description: Optional link to an place in osm
+          nullable: true
+          properties:
+            osmId:
+              type: integer
+              example: 128737
+            osmType:
+              type: string
+              enum:
+                - N
+                - W
+                - R
+              example: W
+            latitude:
+              type: number
+              example: 52.0122
+            longitude:
+              type: number
+              example: 9.8712
+            cityName:
+              type: string
+              example: New York
+    Activity:
+      type: object
+      description: An example to be suggested to users (at a specific place)
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: id of the activity
+          example: 038eba5c-4b73-4a6e-b446-bd967d12deec
+        title:
+          type: string
+          description: friendly name of activity
+          example: Pizza Making Workshop
+        imageId:
+          type: string
+          format: uuid
+          description: id of the image of the activity (use `GET /image/{imageId}` to retrieve image)
+          nullable: true
+          example: a7ebdb57-8b23-4fcf-9841-3d81ed16e1cf
+        imageThumbnail:
+          type: string
+          format: base64
+          description: base64 png representation of a thumbnail of the image referenced by imageId
+          nullable: true
+          example: qweud78QDWQIUND9812=WCEWEC91-XQWQWD===
+        description:
+          type: string
+          description: Description of the activity
+          nullable: true
+          example: Learn how to make the best pizza. Taught by our world-renown master pizza chef.
+        place:
+          $ref: "#/components/schemas/Place"
+    PlaceCategory:
+      type: string
+      example: Restaurant
+      enum:
+        - Bar
+        - SportsFacility
+        - Restaurant
+        - ConcertHall
+        - Theatre
+        - Cinema
+        - SwimmingPool
+        - Store
+        - TouristAttraction
+        - Museum
+        - OutdoorsArea
+        - Region
+        - Park
+        - Cafe
+        - Educational
+        - Other
+      nullable: false
